@@ -12,7 +12,7 @@ from app.errors import (
     rag_exception_handler,
     validation_exception_handler,
 )
-from app.routers import documents, health
+from app.routers import collections, documents, health
 from app.services.embedder import EmbeddingService
 
 logging.basicConfig(level=logging.INFO)
@@ -46,6 +46,7 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
 app.include_router(health.router)
 app.include_router(documents.router)
+app.include_router(collections.router)
 
 
 @app.get("/")
