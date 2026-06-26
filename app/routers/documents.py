@@ -8,10 +8,12 @@ import time
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 
 from app.config import settings
-from app.deps import get_chunker, get_parser
+from app.deps import get_chunker, get_embedder, get_parser, get_vector_store
 from app.errors import RAGAPIException
 from app.services.chunker import ChunkingService
+from app.services.embedder import EmbeddingService, ModelNotLoadedError
 from app.services.parser import FileParser, UnsupportedFileTypeError
+from app.services.vector_store import QdrantService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -38,6 +40,8 @@ async def upload_document(
     doc_name: str | None = Form(None),
     parser: FileParser = Depends(get_parser),
     chunker: ChunkingService = Depends(get_chunker),
+    embedder: EmbeddingService = Depends(get_embedder),
+    vector_store: QdrantService = Depends(get_vector_store),
 ):
     _validate_collection(collection)
     source = doc_name or file.filename or "uploaded_file"
@@ -59,12 +63,38 @@ async def upload_document(
         )
 
     chunks = chunker.chunk(parsed["text"])
-    elapsed_ms = int((time.monotonic() - start) * 1000)
 
+    try:
+        embeddings = await embedder.embed_texts(chunks)
+    except ModelNotLoadedError:
+        raise RAGAPIException(
+            code="EMBEDDING_MODEL_NOT_READY",
+            message="Embedding model is not loaded yet. Try again shortly.",
+            status_code=503,
+        )
+
+    vector_store.ensure_collection(collection)
+
+    if vector_store.check_duplicate(collection, parsed["doc_id"]):
+        raise RAGAPIException(
+            code="DUPLICATE_DOCUMENT",
+            message=f"Document already exists with doc_id '{parsed['doc_id']}'",
+            status_code=409,
+        )
+
+    created = vector_store.upsert_chunks(
+        collection_name=collection,
+        chunks=chunks,
+        embeddings=embeddings,
+        doc_id=parsed["doc_id"],
+        source=source,
+    )
+
+    elapsed_ms = int((time.monotonic() - start) * 1000)
     logger.info(
-        "parsed document %s -> %d chunks (%dms)",
+        "stored document %s -> %d chunks (%dms)",
         parsed["doc_id"],
-        len(chunks),
+        created,
         elapsed_ms,
     )
 
@@ -72,7 +102,7 @@ async def upload_document(
         "doc_id": parsed["doc_id"],
         "collection": collection,
         "source": source,
-        "chunks_created": len(chunks),
+        "chunks_created": created,
         "processing_ms": elapsed_ms,
         "deduplicated": False,
     }
