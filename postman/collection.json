@@ -1,0 +1,152 @@
+{
+  "info": {
+    "name": "Multi-LLM RAG API",
+    "description": "Postman collection for testing the Multi-Provider Retrieval-Augmented Generation API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000", "type": "string" },
+    { "key": "collection", "value": "ml-basics", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health & Readiness",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] }
+          }
+        },
+        {
+          "name": "GET /readiness",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/readiness", "host": ["{{base_url}}"], "path": ["readiness"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documents",
+      "item": [
+        {
+          "name": "POST /documents/upload (PDF)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "../examples/intro_to_ml.pdf" },
+                { "key": "collection", "value": "{{collection}}", "type": "text" }
+              ]
+            },
+            "url": { "raw": "{{base_url}}/documents/upload", "host": ["{{base_url}}"], "path": ["documents", "upload"] }
+          }
+        },
+        {
+          "name": "GET /collections",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/collections", "host": ["{{base_url}}"], "path": ["collections"] }
+          }
+        },
+        {
+          "name": "DELETE /collections/{name}",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{base_url}}/collections/{{collection}}", "host": ["{{base_url}}"], "path": ["collections", "{{collection}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "RAG Queries",
+      "item": [
+        {
+          "name": "POST /ask (Groq)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"What is supervised learning?\",\n  \"collection\": \"{{collection}}\",\n  \"provider\": \"groq\",\n  \"top_k\": 5\n}"
+            },
+            "url": { "raw": "{{base_url}}/ask", "host": ["{{base_url}}"], "path": ["ask"] }
+          }
+        },
+        {
+          "name": "POST /ask (Gemini)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"What is supervised learning?\",\n  \"collection\": \"{{collection}}\",\n  \"provider\": \"gemini\",\n  \"top_k\": 5\n}"
+            },
+            "url": { "raw": "{{base_url}}/ask", "host": ["{{base_url}}"], "path": ["ask"] }
+          }
+        },
+        {
+          "name": "POST /ask (Anthropic)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"What is supervised learning?\",\n  \"collection\": \"{{collection}}\",\n  \"provider\": \"anthropic\",\n  \"top_k\": 5\n}"
+            },
+            "url": { "raw": "{{base_url}}/ask", "host": ["{{base_url}}"], "path": ["ask"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🌟 Killer Feature",
+      "item": [
+        {
+          "name": "POST /compare (all providers)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"What is supervised learning?\",\n  \"collection\": \"{{collection}}\",\n  \"top_k\": 5\n}"
+            },
+            "url": { "raw": "{{base_url}}/compare", "host": ["{{base_url}}"], "path": ["compare"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Evaluation",
+      "item": [
+        {
+          "name": "POST /evaluate (with ground_truth)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"What is gradient descent?\",\n  \"answer\": \"Gradient descent is an optimization algorithm that minimizes a function by iteratively moving in the direction of steepest descent.\",\n  \"context\": [\"Gradient descent minimizes a loss function by iteratively moving in the steepest descent direction.\"],\n  \"ground_truth\": \"Gradient descent is a first-order optimization algorithm.\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/evaluate", "host": ["{{base_url}}"], "path": ["evaluate"] }
+          }
+        },
+        {
+          "name": "POST /evaluate (without ground_truth)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"What is gradient descent?\",\n  \"answer\": \"Gradient descent is an optimization algorithm.\",\n  \"context\": [\"Gradient descent minimizes a loss function.\"]\n}"
+            },
+            "url": { "raw": "{{base_url}}/evaluate", "host": ["{{base_url}}"], "path": ["evaluate"] }
+          }
+        }
+      ]
+    }
+  ]
+}
