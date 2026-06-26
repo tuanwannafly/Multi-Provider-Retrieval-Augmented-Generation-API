@@ -16,3 +16,5 @@ def _set_test_env(monkeypatch):
     monkeypatch.setenv(
         "ANTHROPIC_API_KEY", os.environ.get("ANTHROPIC_API_KEY", "test-anthropic")
     )
+    # Skip the heavy embedding-model preload during the test suite.
+    monkeypatch.setenv("RAG_PRELOAD_EMBEDDING", "0")
