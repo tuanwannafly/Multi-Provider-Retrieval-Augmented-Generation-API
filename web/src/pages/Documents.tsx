@@ -17,8 +17,8 @@ export default function Documents() {
       return api.upload(selectedFile, collection)
     },
     onSuccess: (data) => {
-      toast.success(\Uploaded \\, {
-        description: \\ chunks created in \\,
+      toast.success('Uploaded ' + data.source, {
+        description: data.chunks_created + ' chunks created in ' + data.collection,
       })
       queryClient.invalidateQueries({ queryKey: ['collections'] })
       setSelectedFile(null)
