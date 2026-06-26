@@ -10,8 +10,10 @@ from app.config import settings
 from app.errors import (
     RAGAPIException,
     rag_exception_handler,
+    unhandled_exception_handler,
     validation_exception_handler,
 )
+from app.middleware import LoggingMiddleware
 from app.routers import ask, collections, documents, evaluate, health
 from app.services.embedder import EmbeddingService
 
@@ -41,8 +43,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(LoggingMiddleware)
+
 app.add_exception_handler(RAGAPIException, rag_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
 
 app.include_router(health.router)
 app.include_router(documents.router)
