@@ -5,6 +5,7 @@ from functools import lru_cache
 
 from app.services.chunker import ChunkingService
 from app.services.embedder import EmbeddingService
+from app.services.evaluator import RAGEvaluator
 from app.services.parser import FileParser
 from app.services.rag import RAGService
 from app.services.vector_store import QdrantService
@@ -32,3 +33,7 @@ def get_vector_store() -> QdrantService:
 
 def get_rag_service() -> RAGService:
     return RAGService(embedder=get_embedder(), vector_store=get_vector_store())
+
+
+def get_evaluator() -> RAGEvaluator:
+    return RAGEvaluator(embedder=get_embedder())

@@ -12,7 +12,7 @@ from app.errors import (
     rag_exception_handler,
     validation_exception_handler,
 )
-from app.routers import ask, collections, documents, health
+from app.routers import ask, collections, documents, evaluate, health
 from app.services.embedder import EmbeddingService
 
 logging.basicConfig(level=logging.INFO)
@@ -48,6 +48,7 @@ app.include_router(health.router)
 app.include_router(documents.router)
 app.include_router(collections.router)
 app.include_router(ask.router)
+app.include_router(evaluate.router)
 
 
 @app.get("/")
