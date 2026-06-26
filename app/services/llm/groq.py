@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+from typing import AsyncIterator
 
 from .base import LLMProvider, LLMResponse, ProviderUnavailableError, estimate_cost
 
@@ -47,3 +48,23 @@ class GroqProvider(LLMProvider):
             tokens=tokens,
             estimated_cost_usd=estimate_cost(self.name, in_tokens, out_tokens),
         )
+
+    async def complete_stream(
+        self, prompt: str, system: str = ""
+    ) -> AsyncIterator[str]:
+        try:
+            stream = await self.client.chat.completions.create(
+                model=self.model_id,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": prompt},
+                ],
+                max_tokens=self.max_tokens,
+                stream=True,
+            )
+            async for chunk in stream:
+                delta = chunk.choices[0].delta.content if chunk.choices else None
+                if delta:
+                    yield delta
+        except Exception as exc:
+            raise ProviderUnavailableError(f"Groq stream failed: {exc}") from exc

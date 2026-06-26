@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
+from typing import AsyncIterator
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
 
 from app.config import settings
 from app.deps import get_rag_service
@@ -36,12 +39,22 @@ async def _retrieve(rag: RAGService, question: str, collection: str, top_k: int)
     return chunks
 
 
+def _sse(data: dict) -> str:
+    return f"data: {json.dumps(data)}\n\n"
+
+
 @router.post("/ask")
 async def ask(request: AskRequest, rag: RAGService = Depends(get_rag_service)):
     chunks = await _retrieve(rag, request.question, request.collection, request.top_k)
     prompt = rag.build_prompt(request.question, chunks)
 
     provider = get_provider(request.provider)
+
+    # Streaming path: Server-Sent Events
+    if request.stream:
+        return await _ask_stream(provider, prompt, request, chunks)
+
+    # Non-streaming path: single JSON response
     try:
         result = await asyncio.wait_for(
             provider.complete(prompt, system=RAG_SYSTEM_PROMPT),
@@ -70,6 +83,44 @@ async def ask(request: AskRequest, rag: RAGService = Depends(get_rag_service)):
         "context_preview": [c[:200] for c in chunks[:2]],
         "collection": request.collection,
     }
+
+
+async def _ask_stream(
+    provider, prompt: str, request: AskRequest, chunks: list[str]
+) -> StreamingResponse:
+    async def event_generator() -> AsyncIterator[str]:
+        start = time.monotonic()
+        try:
+            async for token in provider.complete_stream(
+                prompt, system=RAG_SYSTEM_PROMPT
+            ):
+                yield _sse({"token": token})
+            latency_ms = int((time.monotonic() - start) * 1000)
+            yield _sse(
+                {
+                    "done": True,
+                    "provider": provider.name,
+                    "model": provider.model_id,
+                    "latency_ms": latency_ms,
+                    "chunks_used": len(chunks),
+                    "collection": request.collection,
+                }
+            )
+        except ProviderUnavailableError as exc:
+            yield _sse({"error": "PROVIDER_UNAVAILABLE", "message": str(exc)})
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.exception("ask stream failed")
+            yield _sse({"error": "STREAM_ERROR", "message": str(exc)})
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.post("/compare")

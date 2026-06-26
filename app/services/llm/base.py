@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
+from typing import AsyncIterator, Optional
 
 
 class ProviderUnavailableError(RuntimeError):
@@ -50,6 +50,17 @@ class LLMProvider(ABC):
 
     @abstractmethod
     async def complete(self, prompt: str, system: str = "") -> LLMResponse: ...
+
+    async def complete_stream(
+        self, prompt: str, system: str = ""
+    ) -> AsyncIterator[str]:
+        """Yield answer tokens one by one.
+
+        Default implementation falls back to the non-streaming `complete`.
+        Providers override this for real token streaming.
+        """
+        result = await self.complete(prompt, system)
+        yield result.answer
 
     def __repr__(self) -> str:  # pragma: no cover - trivial
         return f"<{self.__class__.__name__} model={self.model_id}>"

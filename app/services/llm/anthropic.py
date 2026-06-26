@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+from typing import AsyncIterator
 
 from .base import LLMProvider, LLMResponse, ProviderUnavailableError, estimate_cost
 
@@ -46,3 +47,18 @@ class AnthropicProvider(LLMProvider):
             tokens=in_tokens + out_tokens,
             estimated_cost_usd=estimate_cost(self.name, in_tokens, out_tokens),
         )
+
+    async def complete_stream(
+        self, prompt: str, system: str = ""
+    ) -> AsyncIterator[str]:
+        try:
+            async with self.client.messages.stream(
+                model=self.model_id,
+                max_tokens=self.max_tokens,
+                system=system or None,
+                messages=[{"role": "user", "content": prompt}],
+            ) as stream:
+                async for text in stream.text_stream:
+                    yield text
+        except Exception as exc:
+            raise ProviderUnavailableError(f"Anthropic stream failed: {exc}") from exc
