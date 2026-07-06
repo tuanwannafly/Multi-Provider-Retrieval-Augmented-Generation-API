@@ -12,7 +12,7 @@ import type {
   EvaluateResponse,
 } from '@/types/api'
 
-const BASE_URL = ''
+const API_BASE_URL = '/api' // New base URL for business endpoints
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -28,12 +28,14 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
 export const api = {
   async health() {
-    const response = await fetch(`${BASE_URL}/health`)
+    // Health endpoint remains at root
+    const response = await fetch(`/health`)
     return handleResponse<HealthResponse>(response)
   },
 
   async readiness() {
-    const response = await fetch(`${BASE_URL}/readiness`)
+    // Readiness endpoint remains at root
+    const response = await fetch(`/readiness`)
     return handleResponse<ReadinessResponse>(response)
   },
 
@@ -43,7 +45,7 @@ export const api = {
     formData.append('collection', collection)
     if (doc_name) formData.append('doc_name', doc_name)
 
-    const response = await fetch(`${BASE_URL}/documents/upload`, {
+    const response = await fetch(`${API_BASE_URL}/documents/upload`, {
       method: 'POST',
       body: formData,
     })
@@ -51,19 +53,19 @@ export const api = {
   },
 
   async getCollections() {
-    const response = await fetch(`${BASE_URL}/collections`)
+    const response = await fetch(`${API_BASE_URL}/collections`)
     return handleResponse<CollectionsResponse>(response)
   },
 
   async deleteCollection(name: string) {
-    const response = await fetch(`${BASE_URL}/collections/${name}`, {
+    const response = await fetch(`${API_BASE_URL}/collections/${name}`, {
       method: 'DELETE',
     })
     return handleResponse<DeleteCollectionResponse>(response)
   },
 
   async ask(data: AskRequest) {
-    const response = await fetch(`${BASE_URL}/ask`, {
+    const response = await fetch(`${API_BASE_URL}/ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -72,7 +74,7 @@ export const api = {
   },
 
   async askStream(data: AskRequest, onToken: (token: string) => void) {
-    const response = await fetch(`${BASE_URL}/ask`, {
+    const response = await fetch(`${API_BASE_URL}/ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...data, stream: true }),
@@ -94,7 +96,8 @@ export const api = {
       if (done) break
 
       buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
+      const lines = buffer.split('
+')
       buffer = lines.pop() || ''
 
       for (const line of lines) {
@@ -109,7 +112,7 @@ export const api = {
   },
 
   async compare(data: CompareRequest) {
-    const response = await fetch(`${BASE_URL}/compare`, {
+    const response = await fetch(`${API_BASE_URL}/compare`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -118,7 +121,7 @@ export const api = {
   },
 
   async evaluate(data: EvaluateRequest) {
-    const response = await fetch(`${BASE_URL}/evaluate`, {
+    const response = await fetch(`${API_BASE_URL}/evaluate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),

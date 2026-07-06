@@ -35,14 +35,18 @@ class FileParser:
         return {"doc_id": doc_id, "text": text, "source": filename}
 
     def _parse_pdf(self, data: bytes) -> str:
-        import PyPDF2
+        import pypdf # Changed from PyPDF2
 
-        reader = PyPDF2.PdfReader(io.BytesIO(data))
+        reader = pypdf.PdfReader(io.BytesIO(data)) # Changed from PyPDF2.PdfReader
         pages = [page.extract_text() or "" for page in reader.pages]
-        return "\n\n".join(pages).strip()
+        return "
+
+".join(pages).strip()
 
     def _parse_docx(self, data: bytes) -> str:
         import docx
 
         document = docx.Document(io.BytesIO(data))
-        return "\n\n".join(p.text for p in document.paragraphs if p.text.strip())
+        return "
+
+".join(p.text for p in document.paragraphs if p.text.strip())

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project implements a **Multi-Provider RAG (Retrieval-Augmented Generation) API** with three LLM providers (Groq, Gemini, Anthropic) behind a unified abstraction layer. The standout feature is `POST /compare`, which benchmarks all three providers in parallel.
+This project implements a **Multi-Provider RAG (Retrieval-Augmented Generation) API** with three LLM providers (Groq, Gemini, Anthropic) behind a unified abstraction layer. The standout feature is `POST /api/compare`, which benchmarks all three providers in parallel.
 
 ---
 
@@ -11,12 +11,12 @@ This project implements a **Multi-Provider RAG (Retrieval-Augmented Generation) 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         CLIENT LAYER                            │
-│              (Postman · curl · Frontend App)                    │
+│              (Frontend App · Postman · curl)                    │
 └─────────────────────────┬───────────────────────────────────────┘
                           │ HTTP REST
 ┌─────────────────────────▼───────────────────────────────────────┐
 │                       FastAPI APPLICATION                       │
-│   /documents   /ask   /compare   /evaluate   /collections       │
+│   /api/documents   /api/ask   /api/api/compare   /api/evaluate   /api/collections    │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │  FileParser · Chunker · EmbeddingService · RAGService    │  │
 │  │  LLM Providers (Groq/Gemini/Anthropic) · Evaluator       │  │
@@ -89,7 +89,7 @@ This project implements a **Multi-Provider RAG (Retrieval-Augmented Generation) 
 
 ---
 
-### 5. Why `asyncio.gather()` for `/compare`?
+### 5. Why `asyncio.gather()` for `/api/compare`?
 
 **Decision:** Use `asyncio.gather()` with per-provider `asyncio.wait_for()` timeouts.
 
@@ -109,7 +109,7 @@ This project implements a **Multi-Provider RAG (Retrieval-Augmented Generation) 
 **Rationale:**
 - **Predictable latency**: First request doesn't incur a 5-10s cold start penalty.
 - **Fail-fast**: If the model can't load (e.g., disk full), the app doesn't start, making the issue visible immediately.
-- **Readiness probe**: `GET /readiness` returns `"status": "ready"` only after the model is loaded, enabling Kubernetes readiness probes.
+- **Readiness probe**: `GET /readiness` returns `"status": "ready"` only after the model is loaded and Qdrant is connected, enabling Kubernetes readiness probes.
 
 **Tradeoff:** Longer startup time, but production systems should prioritize request latency over startup time.
 
@@ -143,13 +143,13 @@ This project implements a **Multi-Provider RAG (Retrieval-Augmented Generation) 
 [SHA256 Hash] → doc_id = "sha256:abc123..."
        │
        ▼
-[pypdf2 extracts text per page]
+[pypdf extracts text per page]
        │
        ▼
 [RecursiveCharacterTextSplitter]
        │ chunk_size=512, overlap=50
        ▼
-[EmbeddingService.encode()] → 384-dim vectors
+[EmbeddingService.encode() via asyncio.to_thread()] → 384-dim vectors
        │
        ▼
 [QdrantService.check_duplicate(doc_id)]
@@ -169,10 +169,10 @@ This project implements a **Multi-Provider RAG (Retrieval-Augmented Generation) 
 ## Data Flow: Query Pipeline
 
 ```
-[User: POST /ask {"question", "collection", "provider"}]
+[User: POST /api/ask {"question", "collection", "provider"}]
        │
        ▼
-[EmbeddingService.embed_query()] → query_vector[384]
+[EmbeddingService.embed_query() via asyncio.to_thread()] → query_vector[384]
        │
        ▼
 [QdrantService.search(collection, query_vector, top_k=5)]
@@ -197,10 +197,11 @@ This project implements a **Multi-Provider RAG (Retrieval-Augmented Generation) 
 
 ## Security Considerations
 
+- **Optional API Key Auth**: `RAG_API_KEY` environment variable protects sensitive endpoints.
 - **No secrets in code**: All API keys come from `.env` (gitignored).
 - **File size limits**: `max_upload_size_mb=20` prevents DoS via large uploads.
 - **Collection name validation**: Regex `^[a-z0-9_-]{1,64}$` prevents injection attacks.
-- **Error messages**: Don't leak internal details (e.g., stack traces) to clients.
+- **Error messages**: Generic error messages for 500s prevent leaking internal details (e.g., stack traces) to clients.
 
 ---
 
@@ -218,9 +219,9 @@ Current design is single-instance. To scale horizontally:
 
 | Feature | Priority | Notes |
 |---------|----------|-------|
-| Streaming SSE for `/ask` | Medium | `stream=true` → Server-Sent Events |
+| Streaming SSE for `/api/ask` | Medium | `stream=true` → Server-Sent Events |
 | Per-request cost tracking | Low | Token count × model pricing |
-| DELETE `/documents/{doc_id}` | Low | Delete single doc, not whole collection |
+| DELETE `/api/documents/{doc_id}` | Low | Delete single doc, not whole collection |
 | Semantic chunking | Low | Chunk by meaning, not character count |
 | API key auth + rate limiting | Medium | Multi-tenant readiness |
 

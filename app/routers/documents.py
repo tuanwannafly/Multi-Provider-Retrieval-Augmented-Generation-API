@@ -6,10 +6,13 @@ import re
 import time
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
+from slowapi.ext.fastapi import Limiter, get_remote_address # Added import
+from app.main import limiter # Import limiter from app.main
 
 from app.config import settings
-from app.deps import get_chunker, get_embedder, get_parser, get_vector_store
+from app.deps import get_chunker, get_embedder, get_parser, get_vector_store, verify_api_key
 from app.errors import RAGAPIException
+from app.models.schemas import UploadResponse
 from app.services.chunker import ChunkingService
 from app.services.embedder import EmbeddingService, ModelNotLoadedError
 from app.services.parser import FileParser, UnsupportedFileTypeError
@@ -33,7 +36,8 @@ def _validate_collection(name: str) -> None:
         )
 
 
-@router.post("/upload")
+@router.post("/upload", response_model=UploadResponse, dependencies=[Depends(verify_api_key)])
+@limiter.limit(settings.rate_limit_ask) # Added rate limit
 async def upload_document(
     file: UploadFile = File(...),
     collection: str = Form(...),

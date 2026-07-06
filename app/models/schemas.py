@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
-from datetime import datetime
+from typing import Optional, List, Dict, Any
 
 
 class UploadResponse(BaseModel):
@@ -35,6 +34,26 @@ class CompareRequest(BaseModel):
     question: str = Field(..., min_length=3, max_length=1000)
     collection: str = Field(..., pattern=r"^[a-z0-9_-]{1,64}$")
     top_k: int = Field(default=5, ge=1, le=20)
+
+
+class CompareResult(BaseModel):
+    answer: Optional[str] = None
+    model: Optional[str] = None
+    latency_ms: Optional[int] = None
+    tokens: Optional[int] = None
+    estimated_cost_usd: Optional[float] = None
+    status: str
+    error: Optional[str] = None
+    message: Optional[str] = None
+
+
+class CompareResponse(BaseModel):
+    question: str
+    collection: str
+    context_chunks: int
+    results: Dict[str, CompareResult]
+    fastest_provider: Optional[str] = None
+    total_elapsed_ms: int
 
 
 class EvaluateRequest(BaseModel):

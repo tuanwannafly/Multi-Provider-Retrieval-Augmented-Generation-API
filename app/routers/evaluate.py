@@ -5,14 +5,14 @@ from fastapi import APIRouter, Depends
 
 from app.deps import get_embedder, get_evaluator
 from app.errors import RAGAPIException
-from app.models.schemas import EvaluateRequest
+from app.models.schemas import EvaluateRequest, EvaluateResponse
 from app.services.embedder import EmbeddingService, ModelNotLoadedError
 from app.services.evaluator import RAGEvaluator
 
 router = APIRouter(tags=["evaluation"])
 
 
-@router.post("/evaluate")
+@router.post("/evaluate", response_model=EvaluateResponse)
 async def evaluate(
     request: EvaluateRequest,
     evaluator: RAGEvaluator = Depends(get_evaluator),

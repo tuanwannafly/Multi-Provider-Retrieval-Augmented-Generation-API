@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    services:
+      qdrant:
+        image: qdrant/qdrant:latest
+        ports:
+          - "6333:6333"
+        volumes:
+          - qdrant_data:/qdrant/storage
+        healthcheck:
+          test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/6333 && echo -e 'GET /readyz HTTP/1.0\r\nhost: localhost\r\n\r\n' >&3"]
+          interval: 10s
+          timeout: 5s
+          retries: 5
+          start_period: 10s
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run pytest
+        env:
+          QDRANT_URL: http://localhost:6333
+          RAG_PRELOAD_EMBEDDING: "0" # Skip heavy model preload in CI
+        run: |
+          source .venv/bin/activate
+          pytest tests/ -v
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies and build
+        run: |
+          cd web
+          npm ci
+          npm run build
