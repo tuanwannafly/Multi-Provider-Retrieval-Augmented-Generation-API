@@ -29,11 +29,23 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
     healthcheck:
-      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/6333 && echo -e 'GET /readyz HTTP/1.0\\r\\nhost: localhost\\r\\n\\r\\n' >&3"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/6333 && echo -e 'GET /readyz HTTP/1.0\r\nhost: localhost\r\n\r\n' >&3"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    ports:
+      - "3000:80" # Map container port 80 (nginx) to host port 3000
+    volumes:
+      - ./web/nginx.conf:/etc/nginx/conf.d/default.conf # Mount nginx config
+    depends_on:
+      - api # Frontend depends on the API service
     restart: unless-stopped
 
 volumes:

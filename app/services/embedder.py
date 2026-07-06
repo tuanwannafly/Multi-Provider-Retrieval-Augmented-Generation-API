@@ -5,6 +5,7 @@ cosine similarity is meaningless.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import List
 
@@ -52,7 +53,8 @@ class EmbeddingService:
     async def embed_texts(self, texts: List[str]) -> List[List[float]]:
         if not self._is_loaded:
             raise ModelNotLoadedError("Embedding model not loaded yet")
-        embeddings = self._model.encode(
+        embeddings = await asyncio.to_thread(
+            self._model.encode,
             texts,
             batch_size=32,
             normalize_embeddings=True,

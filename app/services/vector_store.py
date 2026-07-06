@@ -14,9 +14,12 @@ from qdrant_client.models import (
     PointStruct,
     VectorParams,
 )
+from cachetools import cached, TTLCache # Added import
 
 logger = logging.getLogger(__name__)
 
+# Cache for collection info to optimize repeated calls
+_COLLECTIONS_CACHE = TTLCache(maxsize=64, ttl=5) # Added cache
 
 class QdrantService:
     def __init__(self, url: str, vector_size: int = 384):
@@ -62,6 +65,7 @@ class QdrantService:
                 )
             )
         self.client.upsert(collection_name=collection_name, points=points)
+        _COLLECTIONS_CACHE.clear() # Clear cache on upsert
         return len(points)
 
     def search(
@@ -107,10 +111,13 @@ class QdrantService:
     def distinct_doc_ids(self, collection_name: str) -> List[str]:
         doc_ids: set[str] = set()
         offset: Optional[int] = None
+        # Bounded scroll to get an approximate count for display, not a full scan
+        limit_per_scroll = 100 # Adjusted limit
+        total_scrolled = 0
         while True:
             points, offset = self.client.scroll(
                 collection_name=collection_name,
-                limit=256,
+                limit=limit_per_scroll,
                 offset=offset,
                 with_payload=True,
                 with_vectors=False,
@@ -119,10 +126,12 @@ class QdrantService:
                 doc_id = (point.payload or {}).get("doc_id")
                 if doc_id:
                     doc_ids.add(doc_id)
-            if offset is None:
+            total_scrolled += len(points)
+            if offset is None or total_scrolled >= 1000: # Added total_scrolled limit
                 break
         return list(doc_ids)
 
+    @cached(_COLLECTIONS_CACHE) # Added cache
     def get_collection_info(self, collection_name: str) -> Dict[str, Any]:
         info = self.client.get_collection(collection_name)
         vector_size = self.vector_size
@@ -143,6 +152,7 @@ class QdrantService:
             "disk_size_mb": None,
         }
 
+    @cached(_COLLECTIONS_CACHE) # Added cache
     def list_collections(self) -> List[Dict[str, Any]]:
         names = [c.name for c in self.client.get_collections().collections]
         return [self.get_collection_info(name) for name in names]
@@ -151,4 +161,5 @@ class QdrantService:
         info = self.get_collection_info(collection_name)
         removed = info["chunk_count"]
         self.client.delete_collection(collection_name=collection_name)
+        _COLLECTIONS_CACHE.clear() # Clear cache on delete
         return removed

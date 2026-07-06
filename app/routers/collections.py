@@ -5,14 +5,15 @@ import time
 
 from fastapi import APIRouter, Depends
 
-from app.deps import get_vector_store
+from app.deps import get_vector_store, verify_api_key # Added verify_api_key
 from app.errors import RAGAPIException
+from app.models.schemas import CollectionsListResponse, DeleteCollectionResponse
 from app.services.vector_store import QdrantService
 
 router = APIRouter(prefix="/collections", tags=["collections"])
 
 
-@router.get("")
+@router.get("", response_model=CollectionsListResponse)
 async def list_collections(vector_store: QdrantService = Depends(get_vector_store)):
     collections = vector_store.list_collections()
     total_chunks = sum(c["chunk_count"] for c in collections)
@@ -23,7 +24,7 @@ async def list_collections(vector_store: QdrantService = Depends(get_vector_stor
     }
 
 
-@router.delete("/{name}")
+@router.delete("/{name}", response_model=DeleteCollectionResponse, dependencies=[Depends(verify_api_key)]) # Added dependency
 async def delete_collection(name: str, vector_store: QdrantService = Depends(get_vector_store)):
     if not vector_store.collection_exists(name):
         raise RAGAPIException(

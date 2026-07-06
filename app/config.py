@@ -15,6 +15,16 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     anthropic_api_key: str = ""
 
+    # API Key for authentication (optional)
+    rag_api_key: str = ""
+
+    # Rate Limiting
+    rate_limit_ask: str = "5/minute" # e.g., "5/minute", "100/hour"
+    rate_limit_compare: str = "2/minute" # e.g., "2/minute", "50/hour"
+
+    # CORS
+    cors_origins: str = "http://localhost:3000" # Comma-separated URLs or "*"
+
     # RAG configuration
     default_chunk_size: int = 512
     default_chunk_overlap: int = 50

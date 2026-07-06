@@ -47,6 +47,19 @@ export default function Ask() {
       } catch (error) {
         toast.error('Streaming failed', { description: String(error) })
       }
+    } else {
+      // Non-streaming path: single JSON response
+      try {
+        const result = await api.ask({ question: questionToSend, collection, provider, top_k: topK, stream: false });
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: result.answer,
+          provider: result.provider,
+          latency_ms: result.latency_ms,
+        }]);
+      } catch (error) {
+        toast.error('Ask failed', { description: String(error) });
+      }
     }
   }
 
@@ -152,7 +165,7 @@ export default function Ask() {
           type="text"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleAsk()}
+          onKeyDown={(e) => e.key === 'Enter' && handleAsk()} {/* Changed from onKeyPress */}
           placeholder="Ask a question about your documents..."
           className="flex-1 px-4 py-2 border rounded-md"
         />

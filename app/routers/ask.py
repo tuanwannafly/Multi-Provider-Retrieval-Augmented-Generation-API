@@ -9,11 +9,13 @@ from typing import AsyncIterator
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
+from slowapi.ext.fastapi import Limiter, get_remote_address # Added import
+from app.main import limiter # Import limiter from app.main
 
 from app.config import settings
-from app.deps import get_rag_service
+from app.deps import get_rag_service, verify_api_key # Added verify_api_key
 from app.errors import RAGAPIException
-from app.models.schemas import AskRequest, CompareRequest
+from app.models.schemas import AskRequest, AskResponse, CompareRequest, CompareResponse, CompareResult
 from app.services.llm.base import ProviderUnavailableError
 from app.services.llm.factory import AVAILABLE_PROVIDERS, get_provider
 from app.services.rag import RAG_SYSTEM_PROMPT, RAGService
@@ -40,10 +42,13 @@ async def _retrieve(rag: RAGService, question: str, collection: str, top_k: int)
 
 
 def _sse(data: dict) -> str:
-    return f"data: {json.dumps(data)}\n\n"
+    return f"data: {json.dumps(data)}
+
+"
 
 
-@router.post("/ask")
+@router.post("/ask", response_model=AskResponse, dependencies=[Depends(verify_api_key)])
+@limiter.limit(settings.rate_limit_ask) # Added rate limit
 async def ask(request: AskRequest, rag: RAGService = Depends(get_rag_service)):
     chunks = await _retrieve(rag, request.question, request.collection, request.top_k)
     prompt = rag.build_prompt(request.question, chunks)
@@ -123,7 +128,8 @@ async def _ask_stream(
     )
 
 
-@router.post("/compare")
+@router.post("/compare", response_model=CompareResponse, dependencies=[Depends(verify_api_key)])
+@limiter.limit(settings.rate_limit_compare) # Added rate limit
 async def compare(request: CompareRequest, rag: RAGService = Depends(get_rag_service)):
     chunks = await _retrieve(rag, request.question, request.collection, request.top_k)
     prompt = rag.build_prompt(request.question, chunks)
@@ -137,26 +143,26 @@ async def compare(request: CompareRequest, rag: RAGService = Depends(get_rag_ser
                 provider.complete(prompt, system=RAG_SYSTEM_PROMPT),
                 timeout=settings.llm_timeout_seconds,
             )
-            return name, {
-                "answer": result.answer,
-                "model": result.model,
-                "latency_ms": result.latency_ms,
-                "tokens": result.tokens,
-                "estimated_cost_usd": result.estimated_cost_usd,
-                "status": "success",
-            }
+            return name, CompareResult(
+                answer=result.answer,
+                model=result.model,
+                latency_ms=result.latency_ms,
+                tokens=result.tokens,
+                estimated_cost_usd=result.estimated_cost_usd,
+                status="success",
+            )
         except asyncio.TimeoutError:
-            return name, {
-                "status": "error",
-                "error": "TIMEOUT",
-                "message": f"Request timed out after {settings.llm_timeout_seconds}s",
-                "latency_ms": settings.llm_timeout_seconds * 1000,
-            }
+            return name, CompareResult(
+                status="error",
+                error="TIMEOUT",
+                message=f"Request timed out after {settings.llm_timeout_seconds}s",
+                latency_ms=settings.llm_timeout_seconds * 1000,
+            )
         except ProviderUnavailableError as exc:
-            return name, {"status": "error", "error": "PROVIDER_ERROR", "message": str(exc)}
+            return name, CompareResult(status="error", error="PROVIDER_ERROR", message=str(exc))
         except Exception as exc:  # pragma: no cover - defensive
             logger.exception("compare: provider %s failed", name)
-            return name, {"status": "error", "error": "UNKNOWN", "message": str(exc)}
+            return name, CompareResult(status="error", error="UNKNOWN", message=str(exc))
 
     raw_results = await asyncio.gather(*(call_provider(p) for p in AVAILABLE_PROVIDERS))
     results = dict(raw_results)
@@ -164,15 +170,20 @@ async def compare(request: CompareRequest, rag: RAGService = Depends(get_rag_ser
 
     fastest = None
     for name, payload in results.items():
-        if payload.get("status") == "success":
-            if fastest is None or payload["latency_ms"] < results[fastest]["latency_ms"]:
+        # Ensure payload is a CompareResult instance or dict with 'status'
+        if isinstance(payload, CompareResult) and payload.status == "success":
+            if fastest is None or payload.latency_ms < results[fastest].latency_ms:
+                fastest = name
+        elif isinstance(payload, dict) and payload.get("status") == "success":
+            if fastest is None or payload.get("latency_ms", float('inf')) < results[fastest].get("latency_ms", float('inf')):
                 fastest = name
 
-    return {
-        "question": request.question,
-        "collection": request.collection,
-        "context_chunks": len(chunks),
-        "results": results,
-        "fastest_provider": fastest,
-        "total_elapsed_ms": total_ms,
-    }
+
+    return CompareResponse(
+        question=request.question,
+        collection=request.collection,
+        context_chunks=len(chunks),
+        results=results,
+        fastest_provider=fastest,
+        total_elapsed_ms=total_ms,
+    )
