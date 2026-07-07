@@ -42,9 +42,7 @@ async def _retrieve(rag: RAGService, question: str, collection: str, top_k: int)
 
 
 def _sse(data: dict) -> str:
-    return f"data: {json.dumps(data)}
-
-"
+    return f"data: {json.dumps(data)}\n\n"
 
 
 @router.post("/ask", response_model=AskResponse, dependencies=[Depends(verify_api_key)])
@@ -170,12 +168,8 @@ async def compare(request: CompareRequest, rag: RAGService = Depends(get_rag_ser
 
     fastest = None
     for name, payload in results.items():
-        # Ensure payload is a CompareResult instance or dict with 'status'
         if isinstance(payload, CompareResult) and payload.status == "success":
             if fastest is None or payload.latency_ms < results[fastest].latency_ms:
-                fastest = name
-        elif isinstance(payload, dict) and payload.get("status") == "success":
-            if fastest is None or payload.get("latency_ms", float('inf')) < results[fastest].get("latency_ms", float('inf')):
                 fastest = name
 
 

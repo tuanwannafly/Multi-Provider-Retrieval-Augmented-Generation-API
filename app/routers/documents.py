@@ -19,7 +19,7 @@ from app.services.parser import FileParser, UnsupportedFileTypeError
 from app.services.vector_store import QdrantService
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/documents", tags=["documents"])
+router = APIRouter(tags=["documents"])
 
 _COLLECTION_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
 

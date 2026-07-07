@@ -15,7 +15,7 @@ def test_x_process_time_header():
 
 def test_error_envelope_format():
     resp = client.post(
-        "/documents/upload",
+        "/api/documents/upload",
         data={"collection": "Bad Name!"},
         files={"file": ("note.txt", b"hello", "text/plain")},
     )
@@ -39,7 +39,7 @@ def test_internal_error_envelope(monkeypatch):
     app.dependency_overrides[get_parser] = lambda: BoomParser()
     try:
         resp = client.post(
-            "/documents/upload",
+            "/api/documents/upload",
             data={"collection": "demo"},
             files={"file": ("note.txt", b"hello world", "text/plain")},
         )

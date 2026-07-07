@@ -14,7 +14,7 @@ def setup_module(module):
     app.dependency_overrides[get_embedder] = lambda: FakeEmbedder()
     # Seed one collection via the upload endpoint
     client.post(
-        "/documents/upload",
+        "/api/documents/upload",
         data={"collection": "ml-basics"},
         files={
             "file": (
@@ -33,7 +33,7 @@ def teardown_module(module):
 
 
 def test_list_collections():
-    resp = client.get("/collections")
+    resp = client.get("/api/collections")
     assert resp.status_code == 200, resp.text
     data = resp.json()
     assert data["total_collections"] >= 1
@@ -42,7 +42,7 @@ def test_list_collections():
 
 
 def test_delete_collection():
-    resp = client.delete("/collections/ml-basics")
+    resp = client.delete("/api/collections/ml-basics")
     assert resp.status_code == 200
     data = resp.json()
     assert data["deleted"] is True
@@ -50,6 +50,6 @@ def test_delete_collection():
     assert data["points_removed"] >= 1
 
     # Second delete -> 404
-    again = client.delete("/collections/ml-basics")
+    again = client.delete("/api/collections/ml-basics")
     assert again.status_code == 404
     assert again.json()["error"] == "COLLECTION_NOT_FOUND"

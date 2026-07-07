@@ -72,7 +72,7 @@ def test_ask_success():
     _seed_and_override()
     try:
         resp = client.post(
-            "/ask",
+            "/api/ask",
             json={"question": "What is supervised learning?", "collection": "ml-basics", "provider": "groq"},
         )
         assert resp.status_code == 200, resp.text
@@ -89,7 +89,7 @@ def test_ask_collection_not_found():
     _seed_and_override()
     try:
         resp = client.post(
-            "/ask",
+            "/api/ask",
             json={"question": "anything", "collection": "missing", "provider": "groq"},
         )
         assert resp.status_code == 404
@@ -102,7 +102,7 @@ def test_ask_invalid_provider():
     _seed_and_override()
     try:
         resp = client.post(
-            "/ask",
+            "/api/ask",
             json={"question": "anything", "collection": "ml-basics", "provider": "openai"},
         )
         assert resp.status_code == 400
@@ -120,7 +120,7 @@ def test_compare_all_success_and_fastest():
     _seed_and_override(providers)
     try:
         resp = client.post(
-            "/compare",
+            "/api/compare",
             json={"question": "supervised vs unsupervised", "collection": "ml-basics"},
         )
         assert resp.status_code == 200, resp.text
@@ -141,7 +141,7 @@ def test_compare_graceful_degradation():
     _seed_and_override(providers)
     try:
         resp = client.post(
-            "/compare",
+            "/api/compare",
             json={"question": "supervised vs unsupervised", "collection": "ml-basics"},
         )
         assert resp.status_code == 200
