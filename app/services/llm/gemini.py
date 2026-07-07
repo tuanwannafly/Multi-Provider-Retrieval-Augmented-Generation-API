@@ -1,20 +1,20 @@
 """Gemini provider (gemini-2.0-flash). Uses the new google-genai SDK."""
 from __future__ import annotations
 
-import asyncio
 import time
 from typing import AsyncIterator
 
-from google.generativeai.types import GenerationConfig # Added import
-import google.generativeai as genai # Changed import
+from google import genai
+from google.genai import types
 
 from .base import LLMProvider, LLMResponse, ProviderUnavailableError, estimate_cost
 
 
 class GeminiProvider(LLMProvider):
     def __init__(self, api_key: str):
-        self.client = genai.GenerativeModel(self.model_id) # Changed from _genai
-        genai.configure(api_key=api_key) # Moved configure here
+        if not api_key:
+            raise ProviderUnavailableError("Gemini API key is not configured")
+        self._client = genai.Client(api_key=api_key)
 
     @property
     def name(self) -> str:
@@ -22,21 +22,39 @@ class GeminiProvider(LLMProvider):
 
     @property
     def model_id(self) -> str:
-        return "gemini-2.0-flash" # Updated model ID
+        return "gemini-2.0-flash"
+
+    def _build_contents(self, prompt: str, system: str) -> list[types.Content]:
+        parts: list[types.Part] = [types.Part.from_text(text=prompt)]
+        contents: list[types.Content] = [types.Content(role="user", parts=parts)]
+        if system:
+            contents.append(
+                types.Content(
+                    role="user",
+                    parts=[types.Part.from_text(text=system)],
+                )
+            )
+            contents.append(
+                types.Content(
+                    role="model",
+                    parts=[types.Part.from_text(text="Understood.")],
+                )
+            )
+        return contents
+
+    def _config(self) -> types.GenerateContentConfig:
+        return types.GenerateContentConfig(
+            max_output_tokens=self.max_tokens,
+        )
 
     async def complete(self, prompt: str, system: str = "") -> LLMResponse:
-        messages = [
-            {"role": "user", "parts": [prompt]}
-        ]
-        if system:
-            messages.insert(0, {"role": "system", "parts": [system]}) # Added system role
-
+        contents = self._build_contents(prompt, system)
         start = time.monotonic()
         try:
-            response = await asyncio.to_thread(
-                self.client.generate_content,
-                messages, # Changed to messages
-                generation_config=GenerationConfig(max_output_tokens=self.max_tokens) # Added max_output_tokens
+            response = await self._client.aio.models.generate_content(
+                model=self.model_id,
+                contents=contents,
+                config=self._config(),
             )
         except Exception as exc:
             raise ProviderUnavailableError(f"Gemini request failed: {exc}") from exc
@@ -59,20 +77,17 @@ class GeminiProvider(LLMProvider):
     async def complete_stream(
         self, prompt: str, system: str = ""
     ) -> AsyncIterator[str]:
-        messages = [
-            {"role": "user", "parts": [prompt]}
-        ]
-        if system:
-            messages.insert(0, {"role": "system", "parts": [system]})
-
+        contents = self._build_contents(prompt, system)
         try:
-            stream_response = await asyncio.to_thread(
-                self.client.generate_content,
-                messages,
-                generation_config=GenerationConfig(max_output_tokens=self.max_tokens),
-                stream=True,
+            stream = await self._client.aio.models.generate_content_stream(
+                model=self.model_id,
+                contents=contents,
+                config=self._config(),
             )
-            for chunk in stream_response:
-                yield chunk.text
         except Exception as exc:
             raise ProviderUnavailableError(f"Gemini stream failed: {exc}") from exc
+
+        async for chunk in stream:
+            text = getattr(chunk, "text", None)
+            if text:
+                yield text

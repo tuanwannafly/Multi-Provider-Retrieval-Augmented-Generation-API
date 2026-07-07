@@ -59,7 +59,7 @@ def test_ask_stream_returns_sse():
     try:
         with client.stream(
             "POST",
-            "/ask",
+            "/api/ask",
             json={
                 "question": "What is supervised learning?",
                 "collection": "ml-basics",
@@ -82,7 +82,7 @@ def test_ask_non_stream_still_json():
     _setup()
     try:
         resp = client.post(
-            "/ask",
+            "/api/ask",
             json={
                 "question": "What is supervised learning?",
                 "collection": "ml-basics",

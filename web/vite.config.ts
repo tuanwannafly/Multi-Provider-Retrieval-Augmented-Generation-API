@@ -15,11 +15,10 @@ export default defineConfig({
     proxy: {
       '/health': 'http://localhost:8000',
       '/readiness': 'http://localhost:8000',
-      '/documents': 'http://localhost:8000',
-      '/collections': 'http://localhost:8000',
-      '/ask': 'http://localhost:8000',
-      '/compare': 'http://localhost:8000',
-      '/evaluate': 'http://localhost:8000',
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
     },
   },
 })

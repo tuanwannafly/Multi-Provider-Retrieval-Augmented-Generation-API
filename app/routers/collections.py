@@ -10,7 +10,7 @@ from app.errors import RAGAPIException
 from app.models.schemas import CollectionsListResponse, DeleteCollectionResponse
 from app.services.vector_store import QdrantService
 
-router = APIRouter(prefix="/collections", tags=["collections"])
+router = APIRouter(tags=["collections"])
 
 
 @router.get("", response_model=CollectionsListResponse)

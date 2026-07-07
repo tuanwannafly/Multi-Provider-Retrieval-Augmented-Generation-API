@@ -22,7 +22,7 @@ def test_upload_txt_success():
     _override_deps()
     try:
         resp = client.post(
-            "/documents/upload",
+            "/api/documents/upload",
             data={"collection": "math-101"},
             files={
                 "file": (
@@ -59,9 +59,9 @@ def test_upload_dedup_returns_409():
                 )
             },
         }
-        first = client.post("/documents/upload", **payload)
+        first = client.post("/api/documents/upload", **payload)
         assert first.status_code == 200
-        second = client.post("/documents/upload", **payload)
+        second = client.post("/api/documents/upload", **payload)
         assert second.status_code == 409
         assert second.json()["error"] == "DUPLICATE_DOCUMENT"
     finally:
@@ -70,7 +70,7 @@ def test_upload_dedup_returns_409():
 
 def test_upload_unsupported_type():
     resp = client.post(
-        "/documents/upload",
+        "/api/documents/upload",
         data={"collection": "demo"},
         files={"file": ("slides.pptx", b"binary stuff", "application/vnd.ms-powerpoint")},
     )
@@ -80,7 +80,7 @@ def test_upload_unsupported_type():
 
 def test_upload_invalid_collection_name():
     resp = client.post(
-        "/documents/upload",
+        "/api/documents/upload",
         data={"collection": "Math 101"},
         files={"file": ("note.txt", b"hello world", "text/plain")},
     )

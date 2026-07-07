@@ -18,7 +18,7 @@ def teardown_module(module):
 
 def test_evaluate_without_ground_truth():
     resp = client.post(
-        "/evaluate",
+        "/api/evaluate",
         json={
             "question": "What is gradient descent?",
             "answer": (
@@ -44,7 +44,7 @@ def test_evaluate_without_ground_truth():
 
 def test_evaluate_with_ground_truth():
     resp = client.post(
-        "/evaluate",
+        "/api/evaluate",
         json={
             "question": "What is gradient descent?",
             "answer": (
@@ -69,7 +69,7 @@ def test_evaluate_with_ground_truth():
 
 def test_evaluate_scores_in_range():
     resp = client.post(
-        "/evaluate",
+        "/api/evaluate",
         json={
             "question": "What is gradient descent?",
             "answer": "Gradient descent is an optimization algorithm.",
@@ -83,7 +83,7 @@ def test_evaluate_scores_in_range():
 
 def test_evaluate_requires_context():
     resp = client.post(
-        "/evaluate",
+        "/api/evaluate",
         json={"question": "q", "answer": "a", "context": []},
     )
     # Pydantic min_length=1 -> validation error -> 422 envelope

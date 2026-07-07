@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI):
     # Startup: preload embedding model (skip in tests via RAG_PRELOAD_EMBEDDING=0)
     if os.getenv("RAG_PRELOAD_EMBEDDING", "1") != "0":
         try:
-            embedder := EmbeddingService.get_instance()
+            embedder = EmbeddingService.get_instance()
             embedder.load_model(settings.embedding_model)
             state.AppState.embedding_model_loaded = True
 
@@ -89,10 +89,10 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
 
 app.include_router(health.router)
-app.include_router(documents.router)
-app.include_router(collections.router)
-app.include_router(ask.router)
-app.include_router(evaluate.router)
+app.include_router(documents.router, prefix="/api")
+app.include_router(collections.router, prefix="/api")
+app.include_router(ask.router, prefix="/api")
+app.include_router(evaluate.router, prefix="/api")
 
 
 @app.get("/")
